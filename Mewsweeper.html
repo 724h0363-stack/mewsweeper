@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mewsweeper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #ece6fb;
+  --ink: #2a2551;
+  --muted: #5d5790;
+  --frame: #3b3566;
+  --frame-ink: #f3efff;
+  --panel: #2c2750;
+  --tile-a: #f4a259;
+  --tile-b: #ee9448;
+  --tile-hover: #ffc182;
+  --open-a: #e9e4f8;
+  --open-b: #ddd7f2;
+  --paw: #6d2447;
+  --cuke: #3f9142;
+  --cuke-dark: #1f5c2a;
+  --boom: #ff6b6b;
+  --accent: #f4a259;
+  --chip: #ffffff;
+  --n1: #2563eb; --n2: #15803d; --n3: #dc2626; --n4: #7c3aed;
+  --n5: #b45309; --n6: #0e7490; --n7: #374151; --n8: #be185d;
+  --cs: 36px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14122b;
+    --ink: #efeaff;
+    --muted: #a59fd6;
+    --frame: #2a2551;
+    --frame-ink: #f3efff;
+    --panel: #1d1a3d;
+    --tile-a: #e8934a;
+    --tile-b: #de8640;
+    --tile-hover: #ffb36b;
+    --open-a: #3b3666;
+    --open-b: #332e5d;
+    --paw: #4a1530;
+    --boom: #e5484d;
+    --chip: #2a2551;
+    --n1: #8ab4ff; --n2: #6ee7a0; --n3: #ff8a8a; --n4: #c4a5ff;
+    --n5: #ffc46b; --n6: #5eead4; --n7: #cbd5e1; --n8: #f9a8d4;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14122b;
+  --ink: #efeaff;
+  --muted: #a59fd6;
+  --frame: #2a2551;
+  --frame-ink: #f3efff;
+  --panel: #1d1a3d;
+  --tile-a: #e8934a;
+  --tile-b: #de8640;
+  --tile-hover: #ffb36b;
+  --open-a: #3b3666;
+  --open-b: #332e5d;
+  --paw: #4a1530;
+  --boom: #e5484d;
+  --chip: #2a2551;
+  --n1: #8ab4ff; --n2: #6ee7a0; --n3: #ff8a8a; --n4: #c4a5ff;
+  --n5: #ffc46b; --n6: #5eead4; --n7: #cbd5e1; --n8: #f9a8d4;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Fredoka", "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 28px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+h1 {
+  font-size: clamp(28px, 6vw, 40px);
+  font-weight: 700;
+  margin: 4px 0 2px;
+  letter-spacing: 0.01em;
+}
+.sub { margin: 0 0 16px; color: var(--muted); font-size: 15px; text-align: center; }
+
+.diffs { display: flex; gap: 6px; margin-bottom: 22px; flex-wrap: wrap; justify-content: center; }
+.diffs button, .modebtn {
+  font: inherit;
+  font-weight: 500;
+  font-size: 15px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--frame);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.diffs button[aria-pressed="true"] { background: var(--frame); color: var(--frame-ink); }
+.diffs button:focus-visible, .modebtn:focus-visible, .face:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+
+.frame {
+  position: relative;
+  background: var(--frame);
+  border-radius: 22px;
+  padding: 12px;
+  margin-top: 16px;
+  max-width: 100%;
+  box-shadow: 0 10px 0 rgba(0,0,0,0.12);
+}
+.frame::before, .frame::after {
+  content: "";
+  position: absolute;
+  top: -18px;
+  width: 46px; height: 42px;
+  background: var(--frame);
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+  z-index: 0;
+}
+.frame::before { left: 20px; transform: rotate(-8deg); }
+.frame::after { right: 20px; transform: rotate(8deg); }
+
+.hud {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  background: var(--panel);
+  color: var(--frame-ink);
+  border-radius: 14px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+}
+.stat { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 600; min-width: 92px; font-variant-numeric: tabular-nums; }
+.stat.right { justify-content: flex-end; }
+.stat svg { width: 24px; height: 24px; flex: none; }
+.stat small { font-size: 12px; font-weight: 400; opacity: 0.75; display: block; line-height: 1; }
+.stat .col { display: flex; flex-direction: column; align-items: flex-end; }
+
+.face {
+  width: 54px; height: 54px;
+  border: 0; padding: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform .12s;
+}
+.face:active { transform: scale(0.92); }
+.face svg { width: 100%; height: 100%; display: block; }
+
+.board {
+  position: relative; z-index: 1;
+  display: grid;
+  border-radius: 10px;
+  overflow: hidden;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.cell {
+  width: var(--cs); height: var(--cs);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: calc(var(--cs) * 0.58);
+  line-height: 1;
+}
+.cell.closed.a { background: var(--tile-a); }
+.cell.closed.b { background: var(--tile-b); }
+.cell.closed:hover { background: var(--tile-hover); }
+.cell.open.a { background: var(--open-a); }
+.cell.open.b { background: var(--open-b); }
+.cell.open { animation: pop .22s ease-out backwards; animation-delay: calc(var(--d, 0) * 16ms); }
+.cell.boom { background: var(--boom) !important; }
+.cell svg { width: 72%; height: 72%; display: block; }
+.cell .flagsvg { animation: drop .15s ease-out; }
+@keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes drop { from { transform: translateY(-6px) scale(1.2); } to { transform: none; } }
+.n1 { color: var(--n1); } .n2 { color: var(--n2); } .n3 { color: var(--n3); } .n4 { color: var(--n4); }
+.n5 { color: var(--n5); } .n6 { color: var(--n6); } .n7 { color: var(--n7); } .n8 { color: var(--n8); }
+
+.status { min-height: 26px; margin: 18px 0 8px; font-size: 17px; font-weight: 500; text-align: center; max-width: 520px; }
+.status.win { color: var(--n2); }
+.status.lose { color: var(--n3); }
+
+.help {
+  display: flex; gap: 10px 22px; flex-wrap: wrap; justify-content: center; align-items: center;
+  color: var(--muted); font-size: 15px;
+}
+.help span { display: inline-flex; align-items: center; gap: 8px; }
+kbd {
+  font-family: inherit; font-weight: 600; font-size: 15px;
+  min-width: 30px; text-align: center;
+  background: var(--chip); color: var(--ink);
+  border: 2px solid var(--frame);
+  border-bottom-width: 4px;
+  border-radius: 8px; padding: 2px 8px;
+}
+.modebtn { margin-top: 14px; display: none; }
+@media (hover: none) { .modebtn { display: inline-block; } }
+
+@media (max-width: 480px) {
+  .stat { font-size: 20px; min-width: 70px; }
+  .face { width: 46px; height: 46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell.open, .cell .flagsvg { animation: none; }
+  .face { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<h1>Mewsweeper</h1>
+<p class="sub">Find every cucumber before the cat does. Clear all the safe tiles to win.</p>
+
+<div class="diffs" role="group" aria-label="Difficulty">
+  <button data-d="easy" aria-pressed="true">Easy</button>
+  <button data-d="medium" aria-pressed="false">Medium</button>
+  <button data-d="hard" aria-pressed="false">Hard</button>
+</div>
+
+<div class="frame">
+  <div class="hud">
+    <div class="stat" title="Flags left">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><use href="#paw"/></svg>
+      <span id="flags">10</span>
+    </div>
+    <button class="face" id="face" aria-label="New game" title="New game"></button>
+    <div class="stat right" title="Time">
+      <div class="col"><span id="time">0</span><small id="best">&nbsp;</small></div>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><use href="#clock"/></svg>
+    </div>
+  </div>
+  <div class="board" id="board" role="grid" aria-label="Minesweeper board"></div>
+</div>
+
+<div class="status" id="status" aria-live="polite">Hover a tile, then press E to dig or Q to flag.</div>
+
+<div class="help">
+  <span><kbd>E</kbd> dig the tile under your cursor</span>
+  <span><kbd>Q</kbd> flag it</span>
+  <span><kbd>E</kbd> on a number digs around it once flags match</span>
+</div>
+<button class="modebtn" id="modebtn">Tap mode: dig</button>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="paw" viewBox="0 0 32 32">
+      <g fill="currentColor">
+        <ellipse cx="16" cy="21" rx="7.5" ry="6"/>
+        <ellipse cx="7" cy="14" rx="3" ry="4" transform="rotate(-18 7 14)"/>
+        <ellipse cx="13" cy="8.5" rx="3" ry="4.2"/>
+        <ellipse cx="19.5" cy="8.5" rx="3" ry="4.2"/>
+        <ellipse cx="25.5" cy="14" rx="3" ry="4" transform="rotate(18 25.5 14)"/>
+      </g>
+    </symbol>
+    <symbol id="clock" viewBox="0 0 32 32">
+      <circle cx="16" cy="17" r="11" fill="none" stroke="currentColor" stroke-width="3"/>
+      <path d="M16 10v7l4 3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <path d="M12 3h8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  var DIFFS = {
+    easy:   { c: 10, r: 8,  m: 10 },
+    medium: { c: 18, r: 14, m: 40 },
+    hard:   { c: 24, r: 20, m: 99 }
+  };
+
+  var PAW = '<svg class="flagsvg" viewBox="0 0 32 32" style="color:var(--paw)"><use href="#paw"/></svg>';
+  var CUKE = '<svg viewBox="0 0 32 32"><g transform="rotate(-35 16 16)">' +
+    '<rect x="2" y="9" width="28" height="14" rx="7" fill="#3f9142" stroke="#1f5c2a" stroke-width="2"/>' +
+    '<circle cx="9" cy="14" r="1.2" fill="#1f5c2a"/><circle cx="15" cy="18.5" r="1.2" fill="#1f5c2a"/>' +
+    '<circle cx="21" cy="13.5" r="1.2" fill="#1f5c2a"/><circle cx="25" cy="18" r="1.2" fill="#1f5c2a"/>' +
+    '<path d="M6 12.5h4M13 15h4" stroke="#8fd18f" stroke-width="1.5" stroke-linecap="round" opacity=".8"/></g></svg>';
+  var WRONG = '<svg class="flagsvg" viewBox="0 0 32 32"><g style="color:var(--paw)"><use href="#paw"/></g>' +
+    '<path d="M5 5l22 22M27 5L5 27" stroke="#e5484d" stroke-width="3.5" stroke-linecap="round"/></svg>';
+
+  function face(kind) {
+    var eyes, mouth;
+    if (kind === 'scared') {
+      eyes = '<circle cx="21" cy="30" r="6" fill="#fff"/><circle cx="43" cy="30" r="6" fill="#fff"/>' +
+             '<circle cx="21" cy="31" r="2.4" fill="#2a2551"/><circle cx="43" cy="31" r="2.4" fill="#2a2551"/>';
+      mouth = '<ellipse cx="32" cy="46" rx="4" ry="5" fill="#2a2551"/>';
+    } else if (kind === 'win') {
+      eyes = '<path d="M15 32q6-9 12 0M37 32q6-9 12 0" fill="none" stroke="#2a2551" stroke-width="3" stroke-linecap="round"/>';
+      mouth = '<path d="M25 42q3.5 7 7 0q3.5 7 7 0" fill="none" stroke="#2a2551" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    } else if (kind === 'dead') {
+      eyes = '<path d="M16 26l10 10M26 26L16 36M38 26l10 10M48 26L38 36" stroke="#2a2551" stroke-width="3" stroke-linecap="round"/>';
+      mouth = '<path d="M26 49q6-6 12 0" fill="none" stroke="#2a2551" stroke-width="2.6" stroke-linecap="round"/>';
+    } else {
+      eyes = '<ellipse cx="21" cy="31" rx="3.2" ry="4.6" fill="#2a2551"/><ellipse cx="43" cy="31" rx="3.2" ry="4.6" fill="#2a2551"/>' +
+             '<circle cx="22.2" cy="29.2" r="1.2" fill="#fff"/><circle cx="44.2" cy="29.2" r="1.2" fill="#fff"/>';
+      mouth = '<path d="M26 43q3 4 6 0q3 4 6 0" fill="none" stroke="#2a2551" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    return '<svg viewBox="0 0 64 64">' +
+      '<polygon points="8,26 10,4 28,15" fill="#f4a259" stroke="#2a2551" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<polygon points="56,26 54,4 36,15" fill="#f4a259" stroke="#2a2551" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<polygon points="12,21 13,11 21,16" fill="#f7a8b8"/><polygon points="52,21 51,11 43,16" fill="#f7a8b8"/>' +
+      '<ellipse cx="32" cy="36" rx="25" ry="22" fill="#f4a259" stroke="#2a2551" stroke-width="2.5"/>' +
+      '<path d="M32 14v7M24 15l1.5 6M40 15l-1.5 6" stroke="#c9732a" stroke-width="2.4" stroke-linecap="round"/>' +
+      eyes +
+      '<path d="M29.5 38.5h5l-2.5 3z" fill="#e0607e"/>' + mouth +
+      '<path d="M4 38l12 2M4 45l12-2M60 38l-12 2M60 45l-12-2" stroke="#2a2551" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>' +
+      '</svg>';
+  }
+
+  var boardEl = document.getElementById('board');
+  var flagsEl = document.getElementById('flags');
+  var timeEl = document.getElementById('time');
+  var bestEl = document.getElementById('best');
+  var faceEl = document.getElementById('face');
+  var statusEl = document.getElementById('status');
+  var modeBtn = document.getElementById('modebtn');
+
+  var diffKey = 'easy';
+  var cols, rows, mineCount, total;
+  var mine, adj, opened, flagged, nb, cells;
+  var started, over, openCount, flagCount, startTime, timer, hovered = -1;
+  var tapMode = 'dig';
+
+  function getBest(k) {
+    try { var v = localStorage.getItem('mewsweeper-best-' + k); return v ? parseInt(v, 10) : null; } catch (e) { return null; }
+  }
+  function setBest(k, v) {
+    try { localStorage.setItem('mewsweeper-best-' + k, String(v)); } catch (e) {}
+  }
+  function showBest() {
+    var b = getBest(diffKey);
+    bestEl.textContent = b ? 'best ' + b + 's' : 'no best yet';
+  }
+
+  function fit() {
+    var avail = Math.min(window.innerWidth - 56, 980);
+    var cs = Math.floor(avail / cols);
+    cs = Math.max(20, Math.min(42, cs));
+    document.documentElement.style.setProperty('--cs', cs + 'px');
+  }
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  function newGame() {
+    var d = DIFFS[diffKey];
+    cols = d.c; rows = d.r; mineCount = d.m; total = cols * rows;
+    mine = new Array(total).fill(false);
+    adj = new Array(total).fill(0);
+    opened = new Array(total).fill(false);
+    flagged = new Array(total).fill(false);
+    started = false; over = false; openCount = 0; flagCount = 0; hovered = -1;
+    clearInterval(timer);
+    timeEl.textContent = '0';
+    flagsEl.textContent = mineCount;
+    faceEl.innerHTML = face('happy');
+    setStatus('Hover a tile, then press E to dig or Q to flag.');
+    showBest();
+
+    nb = [];
+    for (var i = 0; i < total; i++) {
+      var r = Math.floor(i / cols), c = i % cols, list = [];
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        var rr = r + dr, cc = c + dc;
+        if (rr >= 0 && rr < rows && cc >= 0 && cc < cols) list.push(rr * cols + cc);
+      }
+      nb.push(list);
+    }
+
+    boardEl.style.gridTemplateColumns = 'repeat(' + cols + ', var(--cs))';
+    boardEl.innerHTML = '';
+    cells = [];
+    for (var j = 0; j < total; j++) {
+      var el = document.createElement('div');
+      el.className = 'cell closed ' + (((Math.floor(j / cols) + j % cols) % 2) ? 'b' : 'a');
+      el.dataset.i = j;
+      el.setAttribute('role', 'gridcell');
+      boardEl.appendChild(el);
+      cells.push(el);
+    }
+    fit();
+  }
+
+  function placeMines(safe) {
+    var banned = {};
+    banned[safe] = true;
+    nb[safe].forEach(function (n) { banned[n] = true; });
+    var pool = [];
+    for (var i = 0; i < total; i++) if (!banned[i]) pool.push(i);
+    if (pool.length < mineCount) {
+      pool = [];
+      for (var k = 0; k < total; k++) if (k !== safe) pool.push(k);
+    }
+    for (var m = 0; m < mineCount; m++) {
+      var pick = Math.floor(Math.random() * pool.length);
+      mine[pool[pick]] = true;
+      pool.splice(pick, 1);
+    }
+    for (var j = 0; j < total; j++) {
+      var n = 0;
+      nb[j].forEach(function (x) { if (mine[x]) n++; });
+      adj[j] = n;
+    }
+  }
+
+  function startTimer() {
+    startTime = Date.now();
+    timer = setInterval(function () {
+      timeEl.textContent = Math.min(999, Math.floor((Date.now() - startTime) / 1000));
+    }, 250);
+  }
+
+  function drawCell(i, depth) {
+    var el = cells[i];
+    var parity = (((Math.floor(i / cols) + i % cols) % 2) ? 'b' : 'a');
+    if (opened[i]) {
+      el.className = 'cell open ' + parity;
+      el.style.setProperty('--d', depth || 0);
+      el.innerHTML = adj[i] ? '<span class="n' + adj[i] + '">' + adj[i] + '</span>' : '';
+    } else {
+      el.className = 'cell closed ' + parity;
+      el.innerHTML = flagged[i] ? PAW : '';
+    }
+  }
+
+  function openCell(i) {
+    if (over) return;
+    if (opened[i]) { chord(i); return; }
+    if (flagged[i]) return;
+    if (!started) {
+      started = true;
+      placeMines(i);
+      startTimer();
+    }
+    if (mine[i]) { lose(i); return; }
+
+    var queue = [i], depth = {};
+    depth[i] = 0;
+    opened[i] = true; openCount++;
+    drawCell(i, 0);
+    var head = 0;
+    while (head < queue.length) {
+      var cur = queue[head++];
+      if (adj[cur] !== 0) continue;
+      var list = nb[cur];
+      for (var k = 0; k < list.length; k++) {
+        var n = list[k];
+        if (opened[n] || flagged[n] || mine[n]) continue;
+        opened[n] = true; openCount++;
+        depth[n] = Math.min(depth[cur] + 1, 30);
+        drawCell(n, depth[n]);
+        queue.push(n);
+      }
+    }
+    checkWin();
+  }
+
+  function chord(i) {
+    if (!adj[i]) return;
+    var f = 0;
+    nb[i].forEach(function (n) { if (flagged[n]) f++; });
+    if (f !== adj[i]) return;
+    var hit = -1;
+    nb[i].forEach(function (n) {
+      if (over || opened[n] || flagged[n]) return;
+      if (mine[n]) { hit = n; return; }
+    });
+    if (hit >= 0) { lose(hit); return; }
+    nb[i].forEach(function (n) { if (!over && !opened[n] && !flagged[n]) openCell(n); });
+  }
+
+  function toggleFlag(i) {
+    if (over || opened[i]) return;
+    flagged[i] = !flagged[i];
+    flagCount += flagged[i] ? 1 : -1;
+    flagsEl.textContent = mineCount - flagCount;
+    drawCell(i);
+  }
+
+  function lose(hit) {
+    over = true;
+    clearInterval(timer);
+    for (var i = 0; i < total; i++) {
+      if (mine[i] && !flagged[i]) {
+        cells[i].className = cells[i].className.replace('closed', 'open') + (i === hit ? ' boom' : '');
+        cells[i].style.setProperty('--d', 0);
+        cells[i].innerHTML = CUKE;
+      } else if (!mine[i] && flagged[i]) {
+        cells[i].innerHTML = WRONG;
+      }
+    }
+    faceEl.innerHTML = face('dead');
+    setStatus('A cucumber! The cat is not amused. Press the cat to try again.', 'lose');
+  }
+
+  function checkWin() {
+    if (openCount !== total - mineCount) return;
+    over = true;
+    clearInterval(timer);
+    var secs = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+    timeEl.textContent = Math.min(999, secs);
+    for (var i = 0; i < total; i++) {
+      if (mine[i] && !flagged[i]) { flagged[i] = true; drawCell(i); }
+    }
+    flagsEl.textContent = 0;
+    faceEl.innerHTML = face('win');
+    var best = getBest(diffKey), msg = 'All clear in ' + secs + 's. Purrfect!';
+    if (!best || secs < best) {
+      setBest(diffKey, secs);
+      msg += ' New best time.';
+      showBest();
+    }
+    setStatus(msg, 'win');
+  }
+
+  /* ---- input ---- */
+  function cellFrom(target) {
+    var el = target.closest ? target.closest('.cell') : null;
+    return el ? parseInt(el.dataset.i, 10) : -1;
+  }
+
+  boardEl.addEventListener('pointerover', function (e) { hovered = cellFrom(e.target); });
+  boardEl.addEventListener('pointermove', function (e) { hovered = cellFrom(e.target); });
+  boardEl.addEventListener('pointerleave', function () { hovered = -1; });
+
+  boardEl.addEventListener('pointerdown', function (e) {
+    if (!over) faceEl.innerHTML = face('scared');
+  });
+  window.addEventListener('pointerup', function () {
+    if (!over) faceEl.innerHTML = face('happy');
+  });
+
+  boardEl.addEventListener('click', function (e) {
+    var i = cellFrom(e.target);
+    if (i < 0) return;
+    if (tapMode === 'flag') toggleFlag(i); else openCell(i);
+  });
+  boardEl.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+    var i = cellFrom(e.target);
+    if (i >= 0) toggleFlag(i);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key.toLowerCase();
+    if (k !== 'e' && k !== 'q') return;
+    if (hovered < 0) return;
+    e.preventDefault();
+    if (k === 'e') openCell(hovered); else toggleFlag(hovered);
+  });
+
+  faceEl.addEventListener('click', newGame);
+
+  document.querySelectorAll('.diffs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      diffKey = b.dataset.d;
+      document.querySelectorAll('.diffs button').forEach(function (x) {
+        x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+      });
+      newGame();
+    });
+  });
+
+  modeBtn.addEventListener('click', function () {
+    tapMode = tapMode === 'dig' ? 'flag' : 'dig';
+    modeBtn.textContent = 'Tap mode: ' + tapMode;
+  });
+
+  window.addEventListener('resize', fit);
+  newGame();
+})();
+</script>
+</body>
+</html>
